@@ -3,13 +3,7 @@
 import { PrismaClient } from '@prisma/client'
 
 const prismaClientSingleton = () => {
-  return new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
-  })
+  return new PrismaClient()
 }
 
 // Global 변수로 prisma 인스턴스를 유지하여 Serverless Function의 연결 풀 문제를 해결합니다.
