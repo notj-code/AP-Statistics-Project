@@ -1,0 +1,32 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model EmergencyCenter {
+  // 기관 고유 ID (Open API의 hpid)
+  id          String   @id @map("hpid")
+  
+  // 기본 정보
+  dutyName    String   @map("duty_name") // 기관명
+  dutytel3    String   @map("duty_tel3") // 응급실 전화
+  
+  // 위치 정보 (지도 시각화에 필요)
+  stage1      String   @map("stage1")   // 시도 (예: 서울특별시)
+  stage2      String   @map("stage2")   // 시군구 (예: 강남구)
+  
+  // 실시간 가용 병상 정보 (핵심 변수)
+  hvec        Int      @map("hvec")     // 응급실 가용 병상 수
+  hvgc        Int      @map("hvgc")     // 입원실 가용 병상 수
+  hvamyn      String   @map("hvamyn")   // 구급차 수용 여부 ('Y'/'N')
+  
+  // 데이터 갱신 시점
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("emergency_centers")
+}
