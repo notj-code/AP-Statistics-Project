@@ -9,12 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@prisma/client": "^7.2.0",
     "axios": "^1.13.2",
     "dotenv": "^17.2.3",
     "fast-xml-parser": "^5.3.3",
     "next": "16.1.0",
-    "prisma": "^7.2.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-kakao-maps-sdk": "^1.2.0"

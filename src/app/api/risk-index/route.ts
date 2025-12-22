@@ -1,13 +1,19 @@
 // app/api/risk-index/route.ts
 
-import prisma from '@/lib/prisma';
 import { NextRequest } from 'next/server';
+import axios from 'axios';
+import { XMLParser } from 'fast-xml-parser';
 
+// Open API 정보 (환경 변수에서 가져옴)
+const API_KEY = process.env.NMC_API_KEY;
+const BASE_URL = 'http://apis.data.go.kr/B552657/ErmctInfoInqireService/getEmrrmRltmUsefulSckbdInfoInqire';
 
-
-// 수용 성공 조건 검사 함수 (2단계의 조건을 재사용)
-const checkSuccessCondition = (hvec: number, hvgc: number, hvamyn: string): boolean => {
-    return hvec > 0 && hvgc > 0 && hvamyn === 'Y';
+// 수용 성공 조건 검사 함수
+const checkSuccessCondition = (item: any): boolean => {
+    const isHvecAvailable = parseInt(item.hvec, 10) > 0;
+    const isHvgcAvailable = parseInt(item.hvgc, 10) > 0;
+    const isHvamynAvailable = item.hvamyn === 'Y';
+    return isHvecAvailable && isHvgcAvailable && isHvamynAvailable;
 };
 
 /**
@@ -16,18 +22,13 @@ const checkSuccessCondition = (hvec: number, hvgc: number, hvamyn: string): bool
  * @returns 위험 지수 (소수점 4자리)
  */
 const calculateRiskIndex = (p: number): number => {
-    if (p < 0 || p > 1) return 1; // p가 유효하지 않으면 최고 위험으로 처리
+    if (p < 0 || p > 1) return 1;
 
-    // 기하 분포 PMF: P(X = x) = (1 - p)^(x-1) * p
-    
-    // 1. 세 번째 시도 이내 성공 확률 P(X <= 3)
-    const p_x1 = p;                                 // P(X=1)
-    const p_x2 = (1 - p) * p;                       // P(X=2)
-    const p_x3 = Math.pow((1 - p), 2) * p;          // P(X=3)
+    const p_x1 = p;
+    const p_x2 = (1 - p) * p;
+    const p_x3 = Math.pow((1 - p), 2) * p;
     
     const p_success_within_3 = p_x1 + p_x2 + p_x3;
-
-    // 2. 위험 지수 = P(X > 3) = 1 - P(X <= 3)
     const risk_index = 1 - p_success_within_3;
     
     return parseFloat(risk_index.toFixed(4));
@@ -43,56 +44,78 @@ export async function GET(request: NextRequest) {
         return Response.json({ error: 'STAGE1(시도) 및 STAGE2(시군구)는 필수입니다.' }, { status: 400 });
     }
 
+    if (!API_KEY) {
+        return Response.json({ message: "API 키가 설정되지 않았습니다." }, { status: 500 });
+    }
+
     try {
-        // 1. DB에서 해당 지역의 모든 응급의료기관 정보 조회
-        const centers = await prisma.emergencyCenter.findMany({
-            where: {
-                stage1: stage1,
-                stage2: stage2,
-            },
-            select: {
-                hvec: true,
-                hvgc: true,
-                hvamyn: true,
+        // 1. Open API 호출
+        const response = await axios.get(BASE_URL, {
+            params: {
+                serviceKey: API_KEY,
+                STAGE1: stage1,
+                STAGE2: stage2,
+                numOfRows: 100 // 충분한 조회 건수 확보
             }
         });
-        
-        const totalCenters = centers.length; // n: 전체 응급의료기관 수
 
-        if (totalCenters === 0) {
-             return Response.json({ 
+        // 2. XML 응답 파싱
+        const parser = new XMLParser({ 
+            ignoreAttributes: false,
+            tagValueProcessor: (tagName, jValue, jPath, isAttr) => {
+                if(jValue === 'null' || jValue === 'N/A') return null;
+                return jValue;
+            }
+        });
+        const jsonResponse = parser.parse(response.data);
+        
+        // 3. 핵심 데이터 추출 및 성공/실패 카운트
+        let totalHospitals = 0;
+        let successfulHospitals = 0;
+
+        const items = jsonResponse.response?.body?.items?.item;
+        
+        const hospitalList = Array.isArray(items) ? items : (items ? [items] : []);
+
+        if (hospitalList.length === 0) {
+            return Response.json({ 
                 stage1, 
                 stage2, 
                 p: 0, 
                 k: 0, 
                 n: 0, 
-                risk_index: 1.0, // 병원이 없으면 최고 위험으로 간주
-                message: '해당 지역에 등록된 응급의료기관이 없습니다.' 
+                risk_index: 1.0,
+                message: '해당 지역에 조회된 응급의료기관이 없습니다.' 
             });
         }
 
-        // 2. 수용 조건을 만족하는 기관 수 (k) 계산
-        const successfulCenters = centers.filter(center => 
-            checkSuccessCondition(center.hvec, center.hvgc, center.hvamyn)
-        ).length;
+        totalHospitals = hospitalList.length;
 
-        // 3. 성공 확률 p = k / n 계산
-        const probabilityP = successfulCenters / totalCenters;
-        
-        // 4. 위험 지수 계산
+        hospitalList.forEach((item: any) => {
+            if (checkSuccessCondition(item)) {
+                successfulHospitals++;
+            }
+        });
+
+        // 4. 성공 확률 p 계산
+        const probabilityP = totalHospitals > 0 
+            ? successfulHospitals / totalHospitals 
+            : 0;
+
+        // 5. 위험 지수 계산
         const riskIndex = calculateRiskIndex(probabilityP);
         
         return Response.json({
             stage1,
             stage2,
             p: parseFloat(probabilityP.toFixed(4)),
-            k: successfulCenters,
-            n: totalCenters,
+            k: successfulHospitals,
+            n: totalHospitals,
             risk_index: riskIndex
         });
 
     } catch (error) {
         console.error('Risk Index Calculation Error:', error);
-        return Response.json({ error: '위험 지수 계산 중 오류가 발생했습니다.' }, { status: 500 });
-    } 
+        return Response.json({ error: '데이터 처리 중 오류가 발생했습니다.', details: error }, { status: 500 });
+    }
 }
