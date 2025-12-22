@@ -1722,3 +1722,44 @@ V. 🚀 5단계: 배포 및 QA (Vercel)
 5.3 환경 변수 등록	Vercel Dashboard	DATABASE_URL, NMC_API_KEY 등을 Vercel 프로젝트 환경 변수에 등록.
 5.4 초기 DB 갱신	브라우저/Cron	배포 직후 Vercel 환경에서 /api/data-sync API를 수동으로 한 번 호출하여 초기 DB 데이터를 채워 넣거나, Cron Job이 실행되기를 기다림.
 5.5 QA 및 검증	브라우저	배포된 URL (https://ap-statistics-project-trre.vercel.app/)에 접속하여 지도, 통계 데이터, API의 응답 속도 등을 최종 점검.
+
+---
+
+###  DATABASE 설정 (Vercel에서 Supabase 연동)
+
+Vercel과 Supabase를 연동하여 PostgreSQL 데이터베이스를 생성하고, 프로젝트에 필요한 `DATABASE_URL`을 설정하는 방법입니다.
+
+**1. Vercel 대시보드에서 데이터베이스 생성**
+
+   - Vercel에 로그인한 후, `ap-statistics-project-trre` 프로젝트를 선택합니다.
+   - 상단 메뉴에서 **Storage** 탭으로 이동합니다.
+   - **Postgres** > **Create Database** 버튼을 클릭합니다.
+   - 데이터베이스 제공자로 **Supabase**를 선택하고, 안내에 따라 Supabase 계정에 로그인하거나 새로 생성합니다.
+   - 데이터베이스 이름과 지역(Region)을 설정한 후, **Create** 버튼을 눌러 생성을 완료합니다.
+   - 마지막으로, 생성된 데이터베이스를 `ap-statistics-project-trre` Vercel 프로젝트에 **Connect** 합니다.
+
+**2. `DATABASE_URL` 확인 및 복사**
+
+   - 데이터베이스 연결이 완료되면, Vercel이 자동으로 `DATABASE_URL`을 프로젝트 환경 변수에 추가해 줍니다.
+   - Vercel 프로젝트의 **Settings** 탭 > **Environment Variables** 메뉴로 이동합니다.
+   - `DATABASE_URL`이라는 이름으로 추가된 환경 변수를 찾습니다.
+   - `Value` 필드에 있는 긴 문자열 ( `postgresql://...` 로 시작)의 **오른쪽 복사 버튼을 클릭**하여 전체 연결 문자열을 복사합니다.
+
+**3. 로컬 `.env` 파일에 `DATABASE_URL` 붙여넣기**
+
+   - 로컬 프로젝트의 루트 디렉토리에 있는 `.env` 파일을 엽니다.
+   - 아래와 같이 복사한 값을 `DATABASE_URL` 변수에 붙여넣습니다.
+
+   ```env
+   # .env
+
+   # Vercel에서 복사한 Supabase 연결 문자열을 여기에 붙여넣으세요.
+   DATABASE_URL="postgresql://postgres:[YOUR-PASSWORD]@[...].supabase.co:5432/postgres"
+
+   # 가지고 계신 인코딩된 NMC API 키를 입력하세요.
+   NMC_API_KEY="YOUR_ENCODED_SERVICE_KEY"
+   ```
+
+   **중요:** `.env` 파일은 Git에 커밋되지 않으므로, 로컬 개발 환경에서만 사용됩니다. Vercel 배포 시에는 2단계에서 Vercel 대시보드에 등록된 환경 변수가 자동으로 사용됩니다.
+
+이 과정을 완료한 후 알려주시면, 데이터베이스에 테이블을 생성하는 `prisma migrate` 명령을 다시 실행하겠습니다.
