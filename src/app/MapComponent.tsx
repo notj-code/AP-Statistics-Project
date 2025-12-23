@@ -94,7 +94,7 @@ export default function EmergencyMap() {
             {selectedRegion && (
                 <div style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
                     <h3>📍 {selectedRegion.stage1} {selectedRegion.stage2} 위험 지수</h3>
-                    <p>🔴 **위험 지수 (P(X > 3)):** **{selectedRegion.risk_index}**</p>
+                    <p>🔴 **위험 지수 (P(X &gt; 3)):** **{selectedRegion.risk_index}**</p>
                     <p>🟢 성공 확률 (p = k/n): {selectedRegion.p}</p>
                     <p>*(위험 지수가 1.0에 가까울수록 안전한 병원 찾기 어려움)*</p>
                     <button onClick={() => setSelectedRegion(null)}>닫기</button>

@@ -23,7 +23,7 @@ export default function HomePage() {
 
       <footer style={{ marginTop: '30px', padding: '15px', backgroundColor: '#e9ecef', borderRadius: '8px' }}>
           <p style={{ fontSize: '0.9rem', color: '#6c757d' }}>
-              * 위험 지수 계산: 세 번째 시도 이내에 수용 가능한 병원을 찾지 못할 확률 $\text{P}(\text{X} > 3)$
+              * 위험 지수 계산: 세 번째 시도 이내에 수용 가능한 병원을 찾지 못할 확률 P(X &gt; 3)
           </p>
       </footer>
     </main>

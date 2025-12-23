@@ -1,3 +1,5 @@
+'use client';
+
 // components/KakaoMapLoader.tsx
 
 import Script from 'next/script';
