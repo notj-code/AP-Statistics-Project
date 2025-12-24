@@ -48,9 +48,10 @@ export async function GET(request: NextRequest) {
         return Response.json({ message: "API 키가 설정되지 않았습니다." }, { status: 500 });
     }
 
+    let response;
     try {
         // 1. Open API 호출
-        const response = await axios.get(BASE_URL, {
+        response = await axios.get(BASE_URL, {
             params: {
                 serviceKey: API_KEY,
                 STAGE1: stage1,
@@ -58,7 +59,13 @@ export async function GET(request: NextRequest) {
                 numOfRows: 100 // 충분한 조회 건수 확보
             }
         });
+    } catch (apiError) {
+        console.error('External API Error:', apiError);
+        return Response.json({ error: '외부 API 호출 중 오류가 발생했습니다.', details: apiError }, { status: 502 }); // 502 Bad Gateway
+    }
 
+    let jsonResponse;
+    try {
         // 2. XML 응답 파싱
         const parser = new XMLParser({ 
             ignoreAttributes: false,
@@ -67,8 +74,13 @@ export async function GET(request: NextRequest) {
                 return jValue;
             }
         });
-        const jsonResponse = parser.parse(response.data);
-        
+        jsonResponse = parser.parse(response.data);
+    } catch (parseError) {
+        console.error('XML Parsing Error:', parseError);
+        return Response.json({ error: 'XML 데이터 파싱 중 오류가 발생했습니다.', details: parseError }, { status: 500 });
+    }
+
+    try {
         // 3. 핵심 데이터 추출 및 성공/실패 카운트
         let totalHospitals = 0;
         let successfulHospitals = 0;
@@ -114,8 +126,8 @@ export async function GET(request: NextRequest) {
             risk_index: riskIndex
         });
 
-    } catch (error) {
-        console.error('Risk Index Calculation Error:', error);
-        return Response.json({ error: '데이터 처리 중 오류가 발생했습니다.', details: error }, { status: 500 });
+    } catch (processingError) {
+        console.error('Data Processing Error:', processingError);
+        return Response.json({ error: '데이터 처리 중 오류가 발생했습니다.', details: processingError }, { status: 500 });
     }
 }
